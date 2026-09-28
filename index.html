@@ -537,8 +537,8 @@ function run(wb){
         <table class="dict">
           <thead><tr>
             <th style="width:46px">#</th>
-            <th>中文名</th>
             <th>日文名</th>
+            <th>中文名</th>
             <th style="width:100px">类型</th>
           </tr></thead>
           <tbody>
@@ -558,8 +558,8 @@ function run(wb){
                             :                '<span class="badge both">两者</span>';
                 return `<tr>
                   <td>${i+1}</td>
-                  <td>${esc(x.std.cn)}</td>
                   <td>${esc(x.std.jp)}</td>
+                  <td>${esc(x.std.cn)}</td>
                   <td>${badge}</td>
                 </tr>`;
               }).join('')}
