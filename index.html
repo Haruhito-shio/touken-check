@@ -544,7 +544,13 @@ function run(wb){
           <tbody>
             ${dict.pairs
               .map(p => ({std: dict.standardOf(p), pair: p}))
-              .sort((a,b)=>a.std.cn.localeCompare(b.std.cn,'zh'))
+              .sort((a,b)=>{
+                const order = {semi:0, raw:1, both:2};
+                const ka = order[a.pair.kind] ?? 9;
+                const kb = order[b.pair.kind] ?? 9;
+                if(ka !== kb) return ka - kb;
+                return a.std.cn.localeCompare(b.std.cn,'zh');
+              })
               .map((x,i)=>{
                 const k = x.pair.kind;
                 const badge = k === 'raw'  ? '<span class="badge raw">原材料</span>'
