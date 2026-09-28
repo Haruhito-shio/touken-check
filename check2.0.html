@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>刀剑乱舞 · 材料表校验 v2</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root{--paper:#f6f0e2;--paper2:#fdfaf3;--ink:#2b2a26;--ink2:#6b655a;
+  --line:#d9cdb4;--line2:#ece2cd;--red:#a8342b;--green:#4a6b52;--warn:#b8862e;--blue:#3c5878}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  color:var(--ink);line-height:1.6;
+  background:radial-gradient(circle at 15% 10%,rgba(180,160,120,.10),transparent 45%),
+             radial-gradient(circle at 85% 85%,rgba(120,140,160,.08),transparent 45%),
+             var(--paper);min-height:100vh}
+header{padding:26px 24px 16px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,0))}
+header h1{margin:0 0 4px;font-size:19px;letter-spacing:.08em}
+header h1::before{content:"";display:inline-block;width:4px;height:17px;
+  background:var(--red);vertical-align:-3px;margin-right:10px;border-radius:1px}
+header p{margin:0;color:var(--ink2);font-size:13px}
+main{max-width:980px;margin:0 auto;padding:20px 24px 60px}
+#drop{border:1.5px dashed var(--line);border-radius:6px;padding:40px 20px;
+  text-align:center;color:var(--ink2);background:var(--paper2);cursor:pointer;
+  transition:.18s;font-size:13px}
+#drop:hover,#drop.over{border-color:var(--red);background:#fffdf7;color:var(--ink)}
+#drop strong{display:block;font-size:15px;margin-bottom:6px;color:var(--ink)}
+#drop .hint{font-size:12px;margin-top:8px}
+.card{background:var(--paper2);border:1px solid var(--line);border-radius:6px;
+  padding:16px 18px;margin-top:14px;
+  box-shadow:0 1px 0 rgba(0,0,0,.02),inset 0 1px 0 rgba(255,255,255,.6)}
+.card h2{margin:0 0 12px;font-size:14px;letter-spacing:.08em;
+  padding-bottom:8px;border-bottom:1px solid var(--line2);
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tag{font-size:11px;padding:2px 8px;border-radius:3px;letter-spacing:.05em;font-weight:500}
+.tag.red{background:#f4e2df;color:var(--red)}
+.tag.warn{background:#f6edd8;color:var(--warn)}
+.tag.ok{background:#e3ece5;color:var(--green)}
+.tag.blue{background:#e3eaf2;color:#3c5878}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.stat{background:#fff;border:1px solid var(--line2);border-radius:4px;padding:11px 13px}
+.stat .k{font-size:11px;color:var(--ink2);letter-spacing:.08em}
+.stat .v{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+.stat.err .v{color:var(--red)}.stat.warn .v{color:var(--warn)}.stat.ok .v{color:var(--green)}
+.issue{padding:9px 12px;border-left:3px solid var(--line);margin:6px 0;
+  background:#fff;border-radius:0 4px 4px 0;font-size:13px}
+.issue.error{border-color:var(--red);background:#fdf6f5}
+.issue.warn{border-color:var(--warn);background:#fdfaf2}
+.issue.unknown{border-color:var(--blue);background:#f4f7fb}
+.issue .loc{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;
+  background:#f0e9d8;color:#6b5a2e;padding:1px 6px;border-radius:3px;
+  margin-right:6px;font-weight:600}
+.issue .raw{font-family:ui-monospace,monospace;background:#fff;
+  border:1px solid var(--line2);padding:0 4px;border-radius:2px;font-size:12px}
+.issue .fix{color:var(--green);font-weight:600}
+.issue .fix::before{content:"→ ";color:var(--ink2);font-weight:400}
+.issue .ctx{font-size:11px;color:var(--ink2);margin-top:3px}
+.empty{color:var(--green);font-size:13px;padding:6px 0}
+.empty::before{content:"✓ ";font-weight:700}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+button{font-family:inherit;font-size:13px;padding:9px 18px;border-radius:4px;
+  border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;
+  letter-spacing:.06em;transition:.15s}
+button:hover{background:#fdfaf3;border-color:var(--ink2)}
+button.primary{background:linear-gradient(180deg,#b8453a,#963024);color:#fff;
+  border-color:#7d2519;font-weight:600}
+button.primary:hover{background:linear-gradient(180deg,#c34d41,#a3362a)}
+pre.checklist{background:#fff;border:1px solid var(--line2);border-radius:4px;
+  padding:12px 14px;font-size:12px;line-height:1.7;overflow:auto;max-height:400px;
+  font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-all;
+  color:var(--ink);margin:8px 0 0}
+.copy-ok{color:var(--green);font-size:12px;margin-left:8px}
+details{margin:8px 0}
+details summary{cursor:pointer;font-size:12px;color:var(--ink2);
+  padding:6px 0;letter-spacing:.05em;user-select:none}
+details summary:hover{color:var(--ink)}
+.legend{font-size:12px;color:var(--ink2);line-height:1.9;
+  background:#fff;border:1px solid var(--line2);border-radius:4px;
+  padding:10px 14px;margin:0 0 10px}
+.legend b{color:var(--ink)}
+.legend code{background:#f7f2e6;padding:1px 5px;border-radius:2px;
+  font-size:11.5px;color:#6b5a2e}
+table.dict{border-collapse:collapse;font-size:12px;width:100%;margin-top:6px}
+table.dict th,table.dict td{border:1px solid var(--line2);padding:4px 10px;text-align:left}
+table.dict th{background:#f0e9d8;color:#6b5a2e;font-weight:600}
+table.dict td{background:#fff}
+table.dict tr:nth-child(even) td{background:#fdfaf3}
+.badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:3px;
+  font-weight:500;white-space:nowrap}
+.badge.raw{background:#e3ece5;color:#4a6b52}
+.badge.semi{background:#ece2ef;color:#6b3f7a}
+.badge.both{background:#f6edd8;color:#b8862e}
+</style>
+</head>
+<body>
+<header>
+  <h1>刀剑乱舞 · 材料表校验 v7</h1>
+  <p>四表共构主字典 · 加权多数派 · 类型标注</p>
+</header>
+<main>
+  <div id="drop">
+    <strong>把 XLSX 拖到这里</strong>
+    或点击选择文件
+    <div class="hint">中文名和日文名都合法 · 数据只在本地处理</div>
+    <input type="file" id="file" accept=".xlsx,.xls" hidden>
+  </div>
+  <div id="report"></div>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const drop=$('#drop'),file=$('#file'),report=$('#report');
+drop.addEventListener('click',()=>file.click());
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over');});
+drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');
+  if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+file.addEventListener('change',()=>{if(file.files[0])handleFile(file.files[0]);});
+
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function norm(s){return String(s??'').replace(/[\r\n]+/g,'').replace(/[\s\u3000]+/g,' ').trim();}
+function normKey(s){return String(s??'').replace(/[\r\n]+/g,'').replace(/[\s\u3000]+/g,'').trim();}
+function colLetter(n){let s='';while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=(n-r-1)/26;}return s;}
+
+function parseMatField(raw){
+  const s=norm(raw);
+  if(!s) return null;
+  let m=s.match(/^(.+?)\s*[xX×＊*]\s*(\d+)$/);
+  if(m) return {name:normKey(m[1]), qty:parseInt(m[2],10)};
+  m=s.match(/^(.+?)\s*(\d+)$/);
+  if(m) return {name:normKey(m[1]), qty:parseInt(m[2],10)};
+  return {name:normKey(s), qty:null};
+}
+
+const ALIASES = {
+  '棋盘': '围棋',
+  '双色御饭团': '双色牡丹饼',
+  '臼与杵': '臼和杵',
+  '米': '大米',
+  'トランの毛皮': 'トラの毛皮',
+  '天ぶら': '天ぷら',
+  '枪の心得': '槍の心得',
+};
+
+const WEIGHTS = {
+  '关卡统计': 3,
+  '材料来源': 3,
+  '材料合成': 3,
+  '刀男所需材料': 1
+};
+
+function isCommentA(text){
+  const t = normKey(text);
+  if(!t) return false;
+  if(t.length > 12) return true;
+  if(/[，。！？、：；（）「」『』【】《》<>\/\\*&@#]/.test(t)) return true;
+  if(/https?:\/\//.test(t)) return true;
+  return false;
+}
+
+/* ============ 材料配对池 ============ */
+class Dict {
+  constructor(){
+    this.pairs = [];
+    this.byCn = new Map();
+    this.byJp = new Map();
+    this.nameToPair = new Map();
+  }
+
+  findPair(cn, jp){
+    let found = null;
+    if(cn && this.byCn.has(cn)) found = this.byCn.get(cn);
+    else if(jp && this.byJp.has(jp)) found = this.byJp.get(jp);
+    return found;
+  }
+
+  /* kind: 'raw'（关卡统计/材料来源） | 'semi'（合成表成品） */
+  add(cn, jp, weight, sheetName, loc, kind){
+    cn = normKey(cn); jp = normKey(jp);
+    if(!cn && !jp) return null;
+
+    const pair = this.findPair(cn, jp);
+    if(pair){
+      if(cn){
+        pair.cnVotes[cn] = (pair.cnVotes[cn] || 0) + weight;
+        if(!pair.cn) pair.cn = cn;
+        if(!this.byCn.has(cn)) this.byCn.set(cn, pair);
+        if(!this.nameToPair.has(cn)) this.nameToPair.set(cn, pair);
+      }
+      if(jp){
+        pair.jpVotes[jp] = (pair.jpVotes[jp] || 0) + weight;
+        if(!pair.jp) pair.jp = jp;
+        if(!this.byJp.has(jp)) this.byJp.set(jp, pair);
+        if(!this.nameToPair.has(jp)) this.nameToPair.set(jp, pair);
+      }
+      pair.occurrences.push({sheetName, loc, name: cn || jp, weight});
+      // 合并 kind
+      if(kind === 'raw' && pair.kind === 'semi') pair.kind = 'both';
+      else if(kind === 'semi' && pair.kind === 'raw') pair.kind = 'both';
+      else if(kind === 'raw' && !pair.kind) pair.kind = 'raw';
+      else if(kind === 'semi' && !pair.kind) pair.kind = 'semi';
+      return pair;
+    }
+
+    const newPair = {
+      cn: cn || '',
+      jp: jp || '',
+      kind: kind || 'raw',
+      cnVotes: {},
+      jpVotes: {},
+      occurrences: []
+    };
+    if(cn){
+      newPair.cnVotes[cn] = weight;
+      this.byCn.set(cn, newPair);
+      this.nameToPair.set(cn, newPair);
+    }
+    if(jp){
+      newPair.jpVotes[jp] = weight;
+      this.byJp.set(jp, newPair);
+      this.nameToPair.set(jp, newPair);
+    }
+    newPair.occurrences.push({sheetName, loc, name: cn || jp, weight});
+    this.pairs.push(newPair);
+    return newPair;
+  }
+
+  lookup(name){ return this.nameToPair.get(name) || null; }
+
+  standardOf(pair){
+    function pickWinner(votes){
+      const entries = Object.entries(votes);
+      if(!entries.length) return '';
+      entries.sort((a,b)=>b[1]-a[1]);
+      return entries[0][0];
+    }
+    return { cn: pickWinner(pair.cnVotes), jp: pickWinner(pair.jpVotes) };
+  }
+}
+
+/* ============ 读取「关卡统计」/「材料来源」 ============ */
+function readRawTable(wb, kw){
+  const sheetName = wb.SheetNames.find(n => n.includes(kw));
+  if(!sheetName) return null;
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:''});
+  const pairs = [];
+  let curCn = '', curJp = '';
+  let cnRow = 0, jpRow = 0;
+  for(let i=1; i<rows.length; i++){
+    const r = rows[i];
+    const c = normKey(r[0]);
+    const j = normKey(r[1]);
+    if(c){ curCn = c; cnRow = i+1; }
+    if(j){ curJp = j; jpRow = i+1; }
+    if(!curCn || !curJp) continue;
+    if(curCn.length > 12 || /[，。！？、：；]/.test(curCn)) continue;
+    if(curJp.length > 12 || /[，。！？、：；]/.test(curJp)) continue;
+    pairs.push({ cn: curCn, jp: curJp, row: i+1, cnLoc: 'A' + cnRow, jpLoc: 'B' + jpRow });
+  }
+  return {sheetName, pairs};
+}
+
+function diffRawTables(t1, t2){
+  const keyOf = p => [p.cn, p.jp].sort().join('||');
+  const set1 = new Map();
+  for(const p of t1.pairs){ const k = keyOf(p); if(!set1.has(k)) set1.set(k, p); }
+  const set2 = new Map();
+  for(const p of t2.pairs){ const k = keyOf(p); if(!set2.has(k)) set2.set(k, p); }
+  const only1 = [], only2 = [];
+  for(const [k, p] of set1) if(!set2.has(k)) only1.push(p);
+  for(const [k, p] of set2) if(!set1.has(k)) only2.push(p);
+  return {only1, only2};
+}
+
+/* ============ 登记原材料表 ============ */
+function registerRawTable(wb, dict, kw){
+  const t = readRawTable(wb, kw);
+  if(!t) return null;
+  const weight = WEIGHTS[kw] || 1;
+  let curCn = '', curJp = '';
+  let cnRow = 0, jpRow = 0;
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[t.sheetName], {header:1, defval:''});
+  for(let i=1; i<rows.length; i++){
+    const r = rows[i];
+    const c = normKey(r[0]);
+    const j = normKey(r[1]);
+    if(c){ curCn = c; cnRow = i+1; }
+    if(j){ curJp = j; jpRow = i+1; }
+    if(!curCn || !curJp) continue;
+    if(curCn.length > 12 || /[，。！？、：；]/.test(curCn)) continue;
+    if(curJp.length > 12 || /[，。！？、：；]/.test(curJp)) continue;
+    dict.add(curCn, curJp, weight, t.sheetName, 'A' + cnRow, 'raw');
+  }
+  return t;
+}
+
+/* ============ 登记「材料合成」 ============ */
+function registerRecipes(wb, dict){
+  const sheetName = wb.SheetNames.find(n => n.includes('材料合成'));
+  if(!sheetName) return {sheetName:null, recipes:new Map(), skippedComments:[], rawRefs:[]};
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:''});
+  const weight = WEIGHTS['材料合成'] || 3;
+  const recipes = new Map();
+  const skippedComments = [];
+  const rawRefs = [];
+
+  let curRecipe = null;
+  let curCn = '';
+
+  for(let i=1; i<rows.length; i++){
+    const r = rows[i];
+    const c = normKey(r[0]);
+    const j = normKey(r[1]);
+    const mat = normKey(r[2]);
+    const lineNo = i+1;
+
+    if(c){
+      if(isCommentA(c)){
+        skippedComments.push({row: lineNo, text: c});
+        continue;
+      }
+      curCn = c;
+      curRecipe = {cn: c, jp: j || '', materials: [], row: lineNo};
+      recipes.set(c, curRecipe);
+      dict.add(c, j || '', weight, sheetName, 'A' + lineNo, 'semi');
+    }else if(j && curRecipe && !curRecipe.jp){
+      curRecipe.jp = j;
+      dict.add(curRecipe.cn, j, weight, sheetName, 'B' + lineNo, 'semi');
+    }
+
+    if(mat && curRecipe){
+      curRecipe.materials.push({name: mat, qty: r[3], row: lineNo});
+      rawRefs.push({name: mat, sheetName, loc: 'C' + lineNo, recipeCn: curCn});
+    }
+  }
+  return {sheetName, recipes, skippedComments, rawRefs};
+}
+
+/* ============ 校验「刀男所需材料」 ============ */
+function checkSwords(wb, dict){
+  const sheetName = wb.SheetNames.find(n => n.includes('刀男'));
+  if(!sheetName) return {issues:[], sheetName:null};
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:''});
+  const weight = WEIGHTS['刀男所需材料'] || 1;
+  const issues = [];
+  let curSword = '', curRarity = '', curStage = '';
+
+  for(let i=1; i<rows.length; i++){
+    const r = rows[i];
+    const s = normKey(r[1]);
+    const rar = normKey(r[3]);
+    const st = normKey(r[4]);
+    if(s) curSword = s;
+    if(rar) curRarity = rar;
+    if(st) curStage = st;
+
+    for(let c=5; c<=10; c++){
+      const raw = String(r[c] ?? '').trim();
+      if(!raw) continue;
+      const p = parseMatField(raw);
+      if(!p || !p.name) continue;
+
+      const n = p.name;
+      const loc = `${colLetter(c+1)}${i+1}`;
+      const ctx = `${curSword || '?'} · ${curRarity || '?'} · ${curStage || '?'}`;
+
+      const pair = dict.lookup(n);
+      if(pair){
+        if(pair.cn === n) pair.cnVotes[n] = (pair.cnVotes[n]||0) + weight;
+        else if(pair.jp === n) pair.jpVotes[n] = (pair.jpVotes[n]||0) + weight;
+        pair.occurrences.push({sheetName, loc, name: n, weight});
+        continue;
+      }
+
+      if(ALIASES[n]){
+        issues.push({level:'error', sheet:sheetName, loc, raw, ctx,
+          msg:`「${n}」不是标准写法`, fix: ALIASES[n]});
+      }else{
+        issues.push({level:'unknown', sheet:sheetName, loc, raw, ctx,
+          msg:`缺信息：「${n}」在四张表里都找不到配对`,
+          fix:'需要把它加进关卡统计 / 材料来源 / 材料合成 中的一张'});
+      }
+    }
+  }
+  return {issues, sheetName};
+}
+
+/* ============ 合成表 C 列引用检查 ============ */
+function checkRecipeRefs(rc, dict){
+  const issues = [];
+  if(!rc || !rc.rawRefs) return issues;
+  for(const r of rc.rawRefs){
+    const n = r.name;
+    if(!n) continue;
+    const pair = dict.lookup(n);
+    if(pair) continue;
+    if(ALIASES[n]){
+      issues.push({level:'error', sheet:rc.sheetName, loc:r.loc, raw:n,
+        ctx:`成品：${r.recipeCn}`,
+        msg:`合成材料「${n}」不是标准写法`, fix: ALIASES[n]});
+    }else{
+      issues.push({level:'unknown', sheet:rc.sheetName, loc:r.loc, raw:n,
+        ctx:`成品：${r.recipeCn}`,
+        msg:`缺信息：「${n}」在四张表里都找不到配对`,
+        fix:'需要把它加进关卡统计 / 材料来源 / 材料合成 中的一张'});
+    }
+  }
+  return issues;
+}
+
+/* ============ 主流程 ============ */
+function handleFile(f){
+  const fr = new FileReader();
+  fr.onload = e => {
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      run(wb);
+    }catch(err){
+      report.innerHTML = `<div class="card"><h2>解析失败</h2>
+        <div class="issue error">${esc(err.message)}</div></div>`;
+    }
+  };
+  fr.readAsArrayBuffer(f);
+}
+
+function run(wb){
+  const dict = new Dict();
+
+  const tGs = registerRawTable(wb, dict, '关卡统计');
+  const tSr = registerRawTable(wb, dict, '材料来源');
+  const rc = registerRecipes(wb, dict);
+  const sw = checkSwords(wb, dict);
+
+  const rcIssues = checkRecipeRefs(rc, dict);
+
+  let rawDiff = {only1:[], only2:[]};
+  if(tGs && tSr) rawDiff = diffRawTables(tGs, tSr);
+
+  const all = [...(sw.issues||[]), ...rcIssues];
+  const errors = all.filter(i => i.level==='error');
+  const missing = all.filter(i => i.level==='unknown');
+
+  const found = {
+    '关卡统计': !!tGs,
+    '材料来源': !!tSr,
+    '材料合成': !!rc.sheetName,
+    '刀男所需材料': !!sw.sheetName
+  };
+
+  const rawCount = dict.pairs.filter(p=>p.kind==='raw').length;
+  const semiCount = dict.pairs.filter(p=>p.kind==='semi').length;
+  const bothCount = dict.pairs.filter(p=>p.kind==='both').length;
+
+  let html = `<div class="card">
+    <h2>工作簿概览</h2>
+    <div class="stats">
+      <div class="stat"><div class="k">Sheet 数量</div><div class="v">${wb.SheetNames.length}</div></div>
+      <div class="stat ok"><div class="k">主字典</div><div class="v">${dict.pairs.length}</div></div>
+      <div class="stat ${errors.length?'err':'ok'}"><div class="k">不一致 / 错字</div><div class="v">${errors.length}</div></div>
+      <div class="stat ${missing.length?'warn':'ok'}"><div class="k">缺信息</div><div class="v">${missing.length}</div></div>
+      <div class="stat ${(rawDiff.only1.length+rawDiff.only2.length)?'err':'ok'}">
+        <div class="k">两表差异</div>
+        <div class="v">${rawDiff.only1.length+rawDiff.only2.length}</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--ink2);margin:10px 0 0">
+      识别：
+      ${Object.entries(found).map(([k,v])=>
+        `<b style="color:${v?'var(--green)':'var(--red)'}">${k}${v?' ✓':' ✗'}</b>`
+      ).join('　')}
+    </p>
+    <p style="font-size:12px;color:var(--ink2);margin:6px 0 0">
+      材料构成：
+      <span class="badge raw">原材料 ${rawCount}</span>
+      <span class="badge semi">半成品 ${semiCount}</span>
+      <span class="badge both">两者兼具 ${bothCount}</span>
+    </p>
+  </div>`;
+
+  html += `<div class="card">
+    <h2>📖 校验逻辑</h2>
+    <div class="legend">
+      <b>主字典</b>：四张表全部参与，权重 关卡统计/材料来源/材料合成=3、刀男所需=1<br>
+      <b>中文名和日文名都合法</b>（<code>蛋 / 卵</code>、<code>麦 / 麦</code>）<br>
+      <b>冲突处理</b>：同一材料多种写法 → 加权多数派决定标准名<br>
+      <b>类型判定</b>：在原材料表出现 → 原材料；在合成表 A 列出现 → 半成品；都出现 → 两者
+    </div>
+  </div>`;
+
+  // 两表差异
+  html += `<div class="card">
+    <h2>⚠️ 原材料两表差异 <span class="tag ${(rawDiff.only1.length+rawDiff.only2.length)?'red':'ok'}">${rawDiff.only1.length+rawDiff.only2.length}</span></h2>`;
+  if(!tGs || !tSr){
+    html += `<div class="issue warn">两张表未同时识别到，无法对比</div>`;
+  }else if(!rawDiff.only1.length && !rawDiff.only2.length){
+    html += `<div class="empty">关卡统计 和 材料来源 完全一致</div>`;
+  }else{
+    if(rawDiff.only1.length){
+      html += `<div style="font-size:12px;color:var(--ink2);margin:6px 0 2px">
+        <b>只在「${esc(tGs.sheetName)}」出现</b>（材料来源可能漏了）：</div>`;
+      for(const p of rawDiff.only1.slice(0,20)){
+        html += `<div class="issue error">
+          <span class="loc">${esc(tGs.sheetName)}!${esc(p.cnLoc)}</span>
+          <span class="raw">${esc(p.cn)} / ${esc(p.jp)}</span>
+          <div class="ctx">材料来源表里没有这一对</div>
+        </div>`;
+      }
+      if(rawDiff.only1.length>20) html += `<div style="font-size:12px;color:var(--ink2);padding:4px 12px">…还有 ${rawDiff.only1.length-20} 条</div>`;
+    }
+    if(rawDiff.only2.length){
+      html += `<div style="font-size:12px;color:var(--ink2);margin:10px 0 2px">
+        <b>只在「${esc(tSr.sheetName)}」出现</b>（关卡统计可能漏了）：</div>`;
+      for(const p of rawDiff.only2.slice(0,20)){
+        html += `<div class="issue error">
+          <span class="loc">${esc(tSr.sheetName)}!${esc(p.cnLoc)}</span>
+          <span class="raw">${esc(p.cn)} / ${esc(p.jp)}</span>
+          <div class="ctx">关卡统计表里没有这一对</div>
+        </div>`;
+      }
+      if(rawDiff.only2.length>20) html += `<div style="font-size:12px;color:var(--ink2);padding:4px 12px">…还有 ${rawDiff.only2.length-20} 条</div>`;
+    }
+  }
+  html += `</div>`;
+
+  // 主字典
+  html += `<div class="card">
+    <h2>📚 主字典 <span class="tag blue">${dict.pairs.length} 种</span></h2>
+    <details open>
+      <summary>点击收起/展开</summary>
+      <div style="max-height:460px;overflow:auto;border:1px solid var(--line2);border-radius:4px;margin-top:8px">
+        <table class="dict">
+          <thead><tr>
+            <th style="width:46px">#</th>
+            <th>中文名</th>
+            <th>日文名</th>
+            <th style="width:100px">类型</th>
+          </tr></thead>
+          <tbody>
+            ${dict.pairs
+              .map(p => ({std: dict.standardOf(p), pair: p}))
+              .sort((a,b)=>a.std.cn.localeCompare(b.std.cn,'zh'))
+              .map((x,i)=>{
+                const k = x.pair.kind;
+                const badge = k === 'raw'  ? '<span class="badge raw">原材料</span>'
+                            : k === 'semi' ? '<span class="badge semi">半成品</span>'
+                            :                '<span class="badge both">两者</span>';
+                return `<tr>
+                  <td>${i+1}</td>
+                  <td>${esc(x.std.cn)}</td>
+                  <td>${esc(x.std.jp)}</td>
+                  <td>${badge}</td>
+                </tr>`;
+              }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </div>`;
+
+  // 跳过的注释
+  if(rc.skippedComments && rc.skippedComments.length){
+    html += `<div class="card">
+      <h2>🚫 合成表跳过的注释行 <span class="tag warn">${rc.skippedComments.length}</span></h2>
+      <p style="font-size:12px;color:var(--ink2);margin:0 0 6px">
+        A 列文字 > 12 字或含标点，被当作注释跳过。</p>`;
+    for(const s of rc.skippedComments){
+      html += `<div class="issue warn">
+        <span class="loc">材料合成!A${s.row}</span>
+        <span class="raw">${esc(s.text)}</span>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // 不一致 / 错字
+  html += `<div class="card"><h2>🔴 不一致 / 错字 <span class="tag red">${errors.length}</span></h2>`;
+  if(!errors.length) html += `<div class="empty">没有发现不一致</div>`;
+  else for(const e of errors){
+    html += `<div class="issue error">
+      <span class="loc">${esc(e.sheet)}!${esc(e.loc)}</span>
+      ${esc(e.msg)}
+      <div class="ctx">${esc(e.ctx||'')}　原值：<span class="raw">${esc(e.raw)}</span></div>
+      ${e.fix?`<div class="fix">${esc(e.fix)}</div>`:''}
+    </div>`;
+  }
+  html += `</div>`;
+
+  // 缺信息
+  html += `<div class="card"><h2>🔵 缺信息 <span class="tag warn">${missing.length}</span></h2>`;
+  html += `<p style="font-size:12px;color:var(--ink2);margin:0 0 8px">
+    这些名字被引用，但四张表里都没有它们的配对。需要补进权威层。</p>`;
+  if(!missing.length) html += `<div class="empty">没有缺失</div>`;
+  else{
+    const byName = new Map();
+    for(const u of missing){
+      const n = (u.raw||'').replace(/[xX×＊*\d]+/g,'').trim();
+      if(!byName.has(n)) byName.set(n, []);
+      byName.get(n).push(u);
+    }
+    for(const [n, arr] of [...byName].sort()){
+      html += `<div class="issue unknown">
+        <b>「${esc(n)}」</b>　出现 ${arr.length} 次
+        <div class="ctx">${arr.slice(0,6).map(a=>`${esc(a.sheet)}!${esc(a.loc)}`).join('　')}${arr.length>6?' …':''}</div>
+      </div>`;
+    }
+  }
+  html += `</div>`;
+
+  const checklist = buildChecklist(rawDiff, errors, missing, tGs, tSr);
+  html += `<div class="card">
+    <h2>📋 纠错清单 <span class="tag ok">可复制</span></h2>
+    <pre class="checklist" id="checklist">${esc(checklist)}</pre>
+    <div class="actions">
+      <button onclick="copyChecklist()">复制清单</button>
+      <span id="copyMsg"></span>
+    </div>
+  </div>`;
+
+  report.innerHTML = html;
+}
+
+function buildChecklist(rawDiff, errors, missing, tGs, tSr){
+  const lines = [];
+  lines.push(`=== 两表差异（${rawDiff.only1.length+rawDiff.only2.length}） ===`);
+  if(tGs && tSr){
+    for(const p of rawDiff.only1){
+      lines.push(`[${tGs.sheetName}!${p.cnLoc}] ${p.cn} / ${p.jp}  →  材料来源缺`);
+    }
+    for(const p of rawDiff.only2){
+      lines.push(`[${tSr.sheetName}!${p.cnLoc}] ${p.cn} / ${p.jp}  →  关卡统计缺`);
+    }
+  }
+  lines.push('');
+  lines.push(`=== 不一致 / 错字（${errors.length}） ===`);
+  errors.forEach((e,i)=>{
+    lines.push(`${i+1}. [${e.sheet}!${e.loc}] ${e.raw} → ${e.fix||'?'}  （${e.ctx||''}）`);
+  });
+  lines.push('');
+  lines.push(`=== 缺信息（${missing.length}） ===`);
+  const byName = new Map();
+  for(const u of missing){
+    const n = (u.raw||'').replace(/[xX×＊*\d]+/g,'').trim();
+    byName.set(n, (byName.get(n)||0)+1);
+  }
+  for(const [n,c] of [...byName].sort()) lines.push(`- ${n}（出现 ${c} 次）`);
+  return lines.join('\n');
+}
+
+window.copyChecklist = function(){
+  const t = document.getElementById('checklist').textContent;
+  navigator.clipboard.writeText(t).then(()=>{
+    document.getElementById('copyMsg').innerHTML = '<span class="copy-ok">已复制 ✓</span>';
+    setTimeout(()=>document.getElementById('copyMsg').innerHTML='', 2000);
+  });
+};
+</script>
+</body>
+</html>
